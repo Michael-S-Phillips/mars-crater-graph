@@ -2,6 +2,7 @@ cff-version: 1.2.0
 message: "If you use this graph, its code, or the explorer, please cite it as below."
 title: "Mars crater superposition graph"
 version: 0.1.0
+doi: 10.5281/zenodo.23675713
 repository-code: "https://github.com/Michael-S-Phillips/mars-crater-graph"
 url: "https://michael-s-phillips.github.io/mars-crater-graph/"
 license:

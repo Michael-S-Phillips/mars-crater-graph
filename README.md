@@ -1,5 +1,7 @@
 # Mars crater superposition graph
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23675713.svg)](https://doi.org/10.5281/zenodo.23675713)
+
 **Interactive explorer:** https://michael-s-phillips.github.io/mars-crater-graph/
 
 This project builds a directed graph of Mars impact craters in which every edge records that one crater formed after another. Nodes are craters from the Robbins and Hynek (2012) database (2020 release, 385,049 craters ≥1 km). An edge `A → B` means crater B is stratigraphically younger than crater A, because B sits inside A's rim or because B's rim cuts A's rim. The first full run links 83,370 craters through 77,661 relations, and the graph contains no cycles.
