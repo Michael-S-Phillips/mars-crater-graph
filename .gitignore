@@ -1,0 +1,11 @@
+work/
+__pycache__/
+*.pyc
+validation/*.tar
+explorer/tiles/themis/5/
+_to_delete/
+explorer/tiles/
+explorer.zip
+._*
+.DS_Store
+CLAUDE_CODE_RELEASE_PROMPT.md

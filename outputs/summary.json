@@ -1,0 +1,46 @@
+{
+  "craters_in_catalog": 385049,
+  "pairs": {
+    "ejecta_zone": 291097,
+    "contain": 61998,
+    "overlap": 26711,
+    "touch": 2778
+  },
+  "overlap_confidence": {
+    "medium": 14684,
+    "none": 10510,
+    "high": 1002,
+    "low": 496,
+    "conflict": 19
+  },
+  "edges_by_method": {
+    "containment": 61975,
+    "arc": 14684,
+    "topo+arc": 1002
+  },
+  "edges_total": 77661,
+  "edges_removed_for_cycles": 0,
+  "hasse_edges": 73183,
+  "craters_in_graph": 83370,
+  "components": 14415,
+  "largest_components": [
+    6146,
+    1152,
+    958,
+    829,
+    593,
+    585,
+    579,
+    471,
+    448,
+    381
+  ],
+  "max_depth": 4,
+  "depth_counts": {
+    "0": 15750,
+    "1": 60660,
+    "2": 6691,
+    "3": 266,
+    "4": 3
+  }
+}

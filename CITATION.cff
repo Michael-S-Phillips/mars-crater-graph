@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this graph, its code, or the explorer, please cite it as below."
+title: "Mars crater superposition graph"
+version: 0.1.0
+repository-code: "https://github.com/Michael-S-Phillips/mars-crater-graph"
+url: "https://michael-s-phillips.github.io/mars-crater-graph/"
+license:
+  - MIT
+  - CC-BY-4.0
+authors:
+  - family-names: Phillips
+    given-names: Michael
+    affiliation: "Lunar and Planetary Laboratory, University of Arizona"
+keywords:
+  - Mars
+  - impact craters
+  - stratigraphy
+  - superposition
+  - relative age
+  - directed acyclic graph
+references:
+  - type: article
+    title: "A new global database of Mars impact craters ≥1 km: 1. Database creation, properties, and parameters"
+    authors:
+      - family-names: Robbins
+        given-names: Stuart J.
+      - family-names: Hynek
+        given-names: Brian M.
+    journal: "Journal of Geophysical Research: Planets"
+    volume: 117
+    year: 2012
+    doi: 10.1029/2011JE003966

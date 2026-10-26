@@ -1,0 +1,15 @@
+{
+  "title": "Mars crater superposition graph: relative-age relations among 83,370 Martian impact craters",
+  "upload_type": "dataset",
+  "version": "0.1.0",
+  "license": "cc-by-4.0",
+  "description": "A directed graph of Martian impact craters in which each edge records that one crater formed after another. Nodes are the 385,049 craters ≥1 km in the Robbins and Hynek (2012) database (2020 release). Edges come from containment (a crater lying entirely inside another crater's rim) and from rim overlap, oriented by rim-arc completeness in the catalog and by rim continuity on MOLA topography. Version 0.1.0 links 83,370 craters through 77,661 relations (73,183 after transitive reduction) with no cycles. The record contains the edge list, the crater table with graph metrics, a GraphML file, pair-level evidence, validation results, and a self-contained HTML explorer that opens in any browser.",
+  "creators": [
+    {"name": "Phillips, Michael", "affiliation": "Lunar and Planetary Laboratory, University of Arizona"}
+  ],
+  "keywords": ["Mars", "impact craters", "stratigraphy", "superposition", "relative age", "directed acyclic graph", "MOLA", "THEMIS"],
+  "related_identifiers": [
+    {"identifier": "10.1029/2011JE003966", "relation": "isDerivedFrom", "scheme": "doi"},
+    {"identifier": "10.3133/sim3292", "relation": "references", "scheme": "doi"}
+  ]
+}

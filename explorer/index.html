@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mars Crater Superposition Graph</title>
+<meta name="description" content="Interactive map of 83,370 Mars craters linked by superposition: click a crater to trace the craters known to be older and younger than it.">
+<meta property="og:title" content="Mars Crater Superposition Graph">
+<meta property="og:description" content="Interactive map of 83,370 Mars craters linked by superposition: click a crater to trace the craters known to be older and younger than it.">
+<style>
+/* page reset (the hosted artifact supplies these itself) */
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); box-sizing: border-box; height: 100%; }
+body { margin: 0; }
+img { max-width: 100%; }
+a { color: inherit; }
+</style>
+</head>
+<body>
+<script src="data/mcg_data.js"></script>
+<script>window.MCG_TILES = {"base": "tiles", "default": "themis", "layers": [{"id": "themis", "name": "THEMIS day IR", "maxZ": 5, "credit": "Basemap: THEMIS daytime infrared global mosaic, 100 m/pixel (Christensen et al., 2004; Edwards et al., 2011)."}, {"id": "relief", "name": "HRSC-MOLA shaded relief", "maxZ": 4, "credit": "Basemap: HRSC-MOLA blended shaded relief, 200 m/pixel (Fergason et al., 2018)."}]};</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Layout: map-first workspace. The relief map fills the left; an inspector docks right and
+   reads like a stratigraphic column (oldest at the bottom). Stacks map-over-inspector on phones. */
+:root {
+  --bg: #eef0ef;
+  --panel: #fafbfa;
+  --ink: #16191c;
+  --ink-2: #4b5157;
+  --muted: #7d848a;
+  --line: #d6dad9;
+  --chip: #e7eae9;
+  --older: #e0612e;
+  --younger: #2a78d6;
+  --d0: #86b6ef; --d1: #3987e5; --d2: #1c5cab; --d3: #0d366b;
+  --dim: rgba(40, 44, 48, 0.28);
+  --edge: rgba(22, 25, 28, 0.55);
+  --unlinked: #7b8288;
+  --map-tint: rgba(238, 240, 239, 0.08);
+  --focus: #2a78d6;
+  --f-display: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121416; --panel: #1a1d20; --ink: #eceeed; --ink-2: #b9bfc3; --muted: #858c92;
+    --line: #2d3236; --chip: #262a2e; --older: #ec7a4b; --younger: #4b93ea;
+    --d0: #9ec5f4; --d1: #5598e7; --d2: #3987e5; --d3: #b7d3f6;
+    --dim: rgba(200, 206, 210, 0.22); --edge: rgba(236, 238, 237, 0.6); --unlinked: #a3aab0;
+    --map-tint: rgba(18, 20, 22, 0.25); --focus: #5598e7; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121416; --panel: #1a1d20; --ink: #eceeed; --ink-2: #b9bfc3; --muted: #858c92;
+  --line: #2d3236; --chip: #262a2e; --older: #ec7a4b; --younger: #4b93ea;
+  --d0: #9ec5f4; --d1: #5598e7; --d2: #3987e5; --d3: #b7d3f6;
+  --dim: rgba(200, 206, 210, 0.22); --edge: rgba(236, 238, 237, 0.6); --unlinked: #a3aab0;
+  --map-tint: rgba(18, 20, 22, 0.25); --focus: #5598e7; color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; }
+.app { height: 100%; display: flex; flex-direction: column; gap: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 14px 16px; box-sizing: border-box; }
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 24px; }
+h1 { font-family: var(--f-display); font-weight: 600; font-size: 1.65rem; letter-spacing: 0.01em; margin: 0; line-height: 1.1; text-wrap: balance; }
+.sub { color: var(--ink-2); margin: 4px 0 0; max-width: 70ch; font-size: 0.93rem; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.86rem; color: var(--ink-2); }
+.stats b { font-family: var(--f-display); font-weight: 600; font-size: 1.15rem; color: var(--ink); font-variant-numeric: tabular-nums; margin-right: 4px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 0.88rem; }
+.search { display: flex; gap: 6px; flex: 1 1 260px; max-width: 420px; }
+input[type="search"], select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; min-width: 0; }
+input[type="search"] { flex: 1; font-family: var(--f-mono); font-size: 0.85rem; }
+button { font: inherit; font-size: 0.86rem; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 11px; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+label.tog { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); cursor: pointer; }
+.msg { color: var(--older); font-size: 0.85rem; min-height: 1.2em; }
+.work { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: minmax(0, 1fr); gap: 12px; min-height: 440px; }
+.mapwrap { position: relative; min-width: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #2a2d30; touch-action: none; }
+canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+canvas.dragging { cursor: grabbing; }
+.zoom { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.zoom button { width: 34px; height: 34px; padding: 0; font-size: 1.1rem; line-height: 1; }
+.legend { position: absolute; left: 10px; bottom: 10px; background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; font-size: 0.78rem; color: var(--ink-2); display: grid; gap: 3px; max-width: calc(100% - 70px); }
+.legend .row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.sw { width: 11px; height: 11px; border-radius: 50%; border: 2px solid currentColor; box-sizing: border-box; display: inline-block; }
+.coord:empty { display: none; }
+.coord { position: absolute; right: 10px; bottom: 10px; font-family: var(--f-mono); font-size: 0.74rem; color: var(--ink-2); background: color-mix(in srgb, var(--panel) 88%, transparent); border-radius: 4px; padding: 2px 6px; font-variant-numeric: tabular-nums; }
+aside { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; overflow: auto; }
+.eyebrow { font-family: var(--f-display); font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.74rem; color: var(--muted); margin: 0 0 4px; }
+.cid { font-family: var(--f-mono); font-weight: 500; font-size: 1.15rem; margin: 0; }
+dl.facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 8px 0 0; font-size: 0.88rem; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; font-variant-numeric: tabular-nums; min-width: 0; }
+.counts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.count { border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; }
+.count .n { font-family: var(--f-display); font-weight: 600; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.count.old .n { color: var(--older); } .count.young .n { color: var(--younger); }
+.count .l { font-size: 0.78rem; color: var(--ink-2); }
+.column { display: flex; flex-direction: column; gap: 0; }
+.layer { box-sizing: border-box; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; border: 1px solid var(--line); border-radius: 4px; padding: 5px 9px; font-size: 0.84rem; background: var(--bg); cursor: pointer; text-align: left; width: 100%; }
+.layer .id { font-family: var(--f-mono); font-size: 0.8rem; }
+.layer .d { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.layer.older { border-left: 4px solid var(--older); }
+.layer.younger { border-left: 4px solid var(--younger); }
+.layer.sel { border: 2px solid var(--ink); font-weight: 600; background: var(--panel); }
+.link { font-size: 0.72rem; color: var(--muted); padding: 2px 0 2px 14px; border-left: 1px dashed var(--line); margin-left: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { font-family: var(--f-mono); font-size: 0.76rem; background: var(--chip); border: 1px solid transparent; border-radius: 4px; padding: 2px 6px; cursor: pointer; color: var(--ink); }
+.chip:hover { border-color: var(--muted); }
+.chip small { font-family: var(--f-body); color: var(--muted); margin-left: 4px; }
+.empty { color: var(--muted); font-size: 0.85rem; }
+details { font-size: 0.86rem; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 10px; }
+summary { cursor: pointer; color: var(--ink); font-weight: 600; }
+details p { margin: 6px 0; max-width: 65ch; }
+.foot { font-size: 0.78rem; color: var(--muted); }
+@media (max-width: 860px) {
+  .app { height: auto; }
+  .work { grid-template-columns: 1fr; grid-template-rows: auto auto; }
+  .mapwrap { height: 58vh; min-height: 340px; }
+  aside { overflow: visible; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="app">
+  <header>
+    <div>
+      <h1>Mars Crater Superposition Graph</h1>
+      <p class="sub">Every arrow says one crater formed after another. Click a crater to trace what lies beneath it (older, orange) and what cuts it (younger, blue).</p>
+    </div>
+    <div class="stats" id="stats" aria-live="polite"><span>Loading craters…</span></div>
+  </header>
+
+  <div class="toolbar">
+    <form class="search" id="searchForm" role="search">
+      <input type="search" id="q" placeholder="Crater ID (07-1-014021) or lat, lon" aria-label="Find a crater by ID or coordinates" autocomplete="off">
+      <button type="submit" id="goBtn">Find</button>
+    </form>
+    <label class="tog"><input type="checkbox" id="showCont" checked> containment</label>
+    <label class="tog"><input type="checkbox" id="showOver" checked> rim overlap</label>
+    <label class="tog"><input type="checkbox" id="showUnl" checked> craters with no relation</label>
+    <label class="tog">min. diameter
+      <select id="minD" aria-label="Minimum crater diameter shown">
+        <option value="0">all (≥1 km)</option><option value="2">2 km</option><option value="5">5 km</option>
+        <option value="10">10 km</option><option value="20">20 km</option>
+      </select></label>
+    <label class="tog" id="baseWrap" hidden>basemap
+      <select id="basemap" aria-label="Basemap"></select></label>
+    <button type="button" id="clearBtn">Clear selection</button>
+    <span class="msg" id="msg" role="status"></span>
+  </div>
+
+  <div class="work">
+    <div class="mapwrap" id="mapwrap">
+      <canvas id="map" aria-label="Map of linked Mars craters over a Mars basemap. Drag to pan, scroll or pinch to zoom, click a crater to select it."></canvas>
+      <div class="zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">−</button></div>
+      <div class="legend" id="legend">
+        <div class="row" id="legDepth">
+          <span><span class="sw" style="color:var(--d0)"></span> depth 0</span>
+          <span><span class="sw" style="color:var(--d1)"></span> 1</span>
+          <span><span class="sw" style="color:var(--d2)"></span> 2</span>
+          <span><span class="sw" style="color:var(--d3)"></span> 3+</span>
+          <span style="color:var(--muted)">older craters beneath</span>
+          <span id="legUnl1"><span class="sw" style="color:var(--unlinked)"></span> no relation</span>
+        </div>
+        <div class="row" id="legSel" hidden>
+          <span><span class="sw" style="color:var(--older)"></span> older</span>
+          <span><span class="sw" style="color:var(--younger)"></span> younger</span>
+          <span><span class="sw" style="color:var(--ink)"></span> selected</span>
+          <span id="legUnl2"><span class="sw" style="color:var(--unlinked)"></span> no relation</span>
+        </div>
+      </div>
+      <div class="coord" id="coord"></div>
+    </div>
+
+    <aside id="panel" aria-live="polite">
+      <div id="detail"><p class="empty">Loading…</p></div>
+      <details>
+        <summary>How the relations were inferred</summary>
+        <p><b>Containment.</b> A crater lying entirely inside another crater's rim must be younger: the larger impact would have erased anything inside its rim.</p>
+        <p><b>Rim overlap.</b> Where two rims cross, the younger rim stays intact. Robbins's rim tracing (the traced fraction of each rim in THEMIS imagery) and a rim-continuity test on MOLA topography each say which rim is missing where the other crater sits; edges are kept when the rim-arc test decides, alone or agreeing with topography.</p>
+        <p><b>Checks.</b> Rim-arc and topography calls agree 98% of the time; oriented edges match Robbins degradation states as often as the geometrically certain containment edges do; in a blind visual check on CTX images, the order matched for 38 of the 40 judgeable pairs whose edges appear here.</p>
+        <p>Arrows show the transitive reduction: an implied relation (A before C, given A before B before C) is not drawn.</p>
+      </details>
+      <p class="foot">Craters: Robbins &amp; Hynek (2012), 2020 release. <span id="baseCredit">Relief: MGS MOLA 128 px/deg.</span> Host units: Tanaka et al. (2014).</p>
+    </aside>
+  </div>
+</div>
+
+<script>
+(() => {
+  const KPD = 3389.5 * Math.PI / 180;           // km per degree
+  const METHODS = ["contains", "rim-arc", "rim-arc + topography", "topography"];
+  const canvas = document.getElementById("map");
+  const ctx = canvas.getContext("2d");
+  const wrap = document.getElementById("mapwrap");
+  const $ = (id) => document.getElementById(id);
+  let N = null, E = null, META = null, relief = null;
+  let U = null, un = 0, ulat, ulon, uD, ugrid, usel = -1;   // cataloged craters with no relation
+  const uidIndex = new Map();
+  let lat, lon, D, n;                            // typed arrays
+  let pred, succ;                                // CSR adjacency over Hasse edges
+  let view = { lon: 329.16, lat: -21.47, s: 30 }; // s = px per degree
+  let sel = -1, anc = null, desc = null, dirty = true;
+  let colors = {};
+  const filt = { cont: true, over: true, minD: 0, unl: true };
+
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement);
+    for (const k of ["older", "younger", "d0", "d1", "d2", "d3", "dim", "edge", "ink", "map-tint", "panel", "unlinked"])
+      colors[k] = cs.getPropertyValue("--" + k).trim();
+    dirty = true;
+  }
+  readColors();
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readColors);
+  new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  const fmt = (x) => x.toLocaleString("en-US");
+
+  // A standalone build defines window.MCG_DATA = {nodes, edges, meta, relief} inline,
+  // so the page also works when opened straight from disk.
+  const INLINE = window.MCG_DATA || null;
+  async function load() {
+    try {
+      if (INLINE) { N = INLINE.nodes; E = INLINE.edges; META = INLINE.meta; U = INLINE.unlinked || null; }
+      else {
+        const [a, b, c] = await Promise.all(["data/nodes.json", "data/edges.json", "data/meta.json"].map((u) => fetch(u).then((r) => {
+          if (!r.ok) throw new Error(u + " " + r.status); return r.json(); })));
+        N = a; E = b; META = c;
+        U = await fetch("data/unlinked.json").then((r) => r.ok ? r.json() : null).catch(() => null);
+      }
+    } catch (err) {
+      $("detail").innerHTML = location.protocol === "file:"
+        ? '<p class="empty">The crater data did not load. Open explorer/index.html or dist/mars_crater_graph_explorer.html instead of this page; they carry their data with them.</p>'
+        : '<p class="empty">The crater data did not load. Reload the page to try again.</p>';
+      return;
+    }
+    n = N.id.length;
+    lat = Float32Array.from(N.lat, (v) => v / 1e4);
+    lon = Float32Array.from(N.lon, (v) => v / 1e4);
+    D = Float32Array.from(N.D, (v) => v / 100);
+    if (U) {
+      un = U.id.length;
+      ulat = Float32Array.from(U.lat, (v) => v / 1e3);
+      ulon = Float32Array.from(U.lon, (v) => v / 1e3);
+      uD = Float32Array.from(U.D, (v) => v / 100);
+      for (let j = 0; j < un; j++) uidIndex.set(U.id[j], j);
+      ugrid = binCraters(ulat, ulon, uD, un);
+    } else { $("showUnl").closest("label").hidden = true; $("legUnl1").hidden = true; $("legUnl2").hidden = true; filt.unl = false; }
+    buildAdj(); buildGrid(); fillStats();
+    const img = new Image();
+    img.onload = () => { relief = img; dirty = true; };
+    img.src = INLINE && INLINE.relief ? INLINE.relief : "data/relief.jpg";
+    const hash = decodeURIComponent((location.hash || "").slice(1));
+    const start = idIndex.get(hash) ?? idIndex.get("07-1-014021");
+    if (uidIndex.has(hash)) selectUnlinked(uidIndex.get(hash), true);
+    else if (start !== undefined) select(start, true); else renderDetail();
+    resize(); loop();
+  }
+
+  let idIndex = new Map();
+  function buildAdj() {
+    for (let i = 0; i < n; i++) idIndex.set(N.id[i], i);
+    const m = E.o.length;
+    const pc = new Int32Array(n + 1), sc = new Int32Array(n + 1);
+    for (let k = 0; k < m; k++) { pc[E.y[k] + 1]++; sc[E.o[k] + 1]++; }
+    for (let i = 0; i < n; i++) { pc[i + 1] += pc[i]; sc[i + 1] += sc[i]; }
+    const pv = new Int32Array(m), pm = new Int8Array(m), sv = new Int32Array(m), sm = new Int8Array(m);
+    const pf = pc.slice(), sf = sc.slice();
+    for (let k = 0; k < m; k++) {
+      const o = E.o[k], y = E.y[k], mm = E.m[k];
+      pv[pf[y]] = o; pm[pf[y]++] = mm; sv[sf[o]] = y; sm[sf[o]++] = mm;
+    }
+    pred = { off: pc, v: pv, m: pm }; succ = { off: sc, v: sv, m: sm };
+  }
+
+  // 1-degree bins for picking
+  let grid;
+  function binCraters(LAT, LON, DD, count) {
+    const g = new Map();
+    for (let i = 0; i < count; i++) {
+      const r = DD[i] / 2 / KPD, cl = Math.max(Math.cos(LAT[i] * Math.PI / 180), 0.05);
+      const la0 = Math.floor(LAT[i] - r), la1 = Math.floor(LAT[i] + r);
+      const lo0 = Math.floor(LON[i] - r / cl), lo1 = Math.floor(LON[i] + r / cl);
+      for (let a = la0; a <= la1; a++) for (let b = lo0; b <= lo1; b++) {
+        const key = a * 1000 + ((b % 360) + 360) % 360;
+        let arr = g.get(key); if (!arr) g.set(key, arr = []); arr.push(i);
+      }
+    }
+    return g;
+  }
+  function buildGrid() { grid = binCraters(lat, lon, D, n); }
+
+  function fillStats() {
+    const s = META.summary, v = META.validation;
+    const chain = s.max_depth + 1;
+    $("stats").innerHTML =
+      `<span><b>${fmt(s.craters_in_graph)}</b>of ${fmt(s.craters_in_catalog)} craters linked</span>` +
+      `<span><b>${fmt(s.hasse_edges)}</b>direct relations</span>` +
+      `<span><b>${fmt(s.components)}</b>separate clusters</span>` +
+      `<span><b>${chain}</b>craters in the longest chain</span>` +
+      (v.ctx_visual ? `<span><b>${Math.round(v.ctx_visual.agreement * 100)}%</b>agree with blind CTX check</span>` : "");
+  }
+
+  function closure(start, adj) {
+    const seen = new Uint8Array(n), out = [];
+    const stack = [start];
+    while (stack.length) {
+      const u = stack.pop();
+      for (let k = adj.off[u]; k < adj.off[u + 1]; k++) {
+        const w = adj.v[k];
+        if (!seen[w]) { seen[w] = 1; out.push(w); stack.push(w); }
+      }
+    }
+    return seen;
+  }
+
+  function edgeVisible(m) { return m === 0 ? filt.cont : filt.over; }
+
+  function select(i, center) {
+    sel = i; usel = -1;
+    anc = i >= 0 ? closure(i, pred) : null;
+    desc = i >= 0 ? closure(i, succ) : null;
+    $("legDepth").hidden = i >= 0; $("legSel").hidden = i < 0;
+    if (i >= 0 && center) {
+      view.lon = lon[i]; view.lat = lat[i];
+      const span = Math.max(D[i] * 3 / KPD, 1.2);
+      view.s = Math.min(Math.max(Math.min(canvas.clientWidth, canvas.clientHeight) / span, 4), 4000);
+    }
+    renderDetail(); dirty = true;
+  }
+
+  function chainBelow(i) { const out = []; let u = i;
+    while (N.depth[u] > 0) { let next = -1, mm = 0;
+      for (let k = pred.off[u]; k < pred.off[u + 1]; k++) if (N.depth[pred.v[k]] === N.depth[u] - 1) { next = pred.v[k]; mm = pred.m[k]; break; }
+      if (next < 0) break; out.push([next, mm]); u = next; }
+    return out; }
+  function chainAbove(i) { const out = []; let u = i;
+    while (N.height[u] > 0) { let next = -1, mm = 0;
+      for (let k = succ.off[u]; k < succ.off[u + 1]; k++) if (N.height[succ.v[k]] === N.height[u] - 1) { next = succ.v[k]; mm = succ.m[k]; break; }
+      if (next < 0) break; out.push([next, mm]); u = next; }
+    return out; }
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const dtxt = (d) => d >= 10 ? d.toFixed(0) + " km" : d.toFixed(1) + " km";
+  const ll = (i) => `${Math.abs(lat[i]).toFixed(3)}°${lat[i] < 0 ? "S" : "N"}, ${lon[i].toFixed(3)}°E`;
+
+  const REASONS = [
+    "No other cataloged crater overlaps it, contains it, or lies inside it.",
+    "It lies on or near another crater's continuous ejecta. Whether it sits on that ejecta or was buried by it has to be read from images, and this version does not orient ejecta relations.",
+    "Its rim only grazes another crater's rim, too little overlap to tell which rim survives.",
+    "It belongs to a nested pair set aside as a likely duplicate catalog entry or basin ring.",
+    "Its rim crosses another crater's rim, but neither the rim-arc test nor the topography test could tell which crater is younger.",
+    "Its only relation comes from the topography test alone, which is left out of this graph as low confidence.",
+  ];
+  function selectUnlinked(j, center) {
+    sel = -1; anc = null; desc = null; usel = j;
+    $("legDepth").hidden = false; $("legSel").hidden = true;
+    if (center) {
+      view.lon = ulon[j]; view.lat = ulat[j];
+      view.s = Math.min(Math.max(Math.min(canvas.clientWidth, canvas.clientHeight) / Math.max(uD[j] * 6 / KPD, 0.6), 4), 4000);
+    }
+    renderDetail(); dirty = true;
+  }
+
+  function renderDetail() {
+    const el = $("detail");
+    if (usel >= 0) {
+      const j = usel;
+      el.innerHTML = `
+        <p class="eyebrow">Selected crater · no relation in the graph</p>
+        <p class="cid">${esc(U.id[j])}</p>
+        <dl class="facts">
+          <dt>Diameter</dt><dd>${uD[j].toFixed(2)} km</dd>
+          <dt>Center</dt><dd>${Math.abs(ulat[j]).toFixed(3)}°${ulat[j] < 0 ? "S" : "N"}, ${ulon[j].toFixed(3)}°E</dd>
+        </dl>
+        <p class="eyebrow" style="margin-top:14px">Why it has no relation</p>
+        <p style="margin:0;max-width:60ch">${REASONS[U.st[j]] || REASONS[0]}</p>`;
+      return;
+    }
+    if (sel < 0) {
+      el.innerHTML = '<p class="eyebrow">No crater selected</p><p class="empty">Click any circle on the map, or search for a crater ID. The inspector then shows its stratigraphic column: the longest chain of craters beneath it and above it. Gray circles are cataloged craters with no relation yet; clicking one says why.</p>';
+      return;
+    }
+    const i = sel, u = N.unit[i];
+    const unit = u >= 0 ? `${esc(META.units[u])} <span style="color:var(--muted)">${esc(META.unitDesc[u])}</span>` : "—";
+    const deg = N.deg[i] ? `${N.deg[i]} of 4 <span style="color:var(--muted)">(4 = freshest)</span>` : "not classified";
+    const below = chainBelow(i), above = chainAbove(i);
+    let col = "";
+    for (let k = above.length - 1; k >= 0; k--) {
+      const [v] = above[k];
+      col += `<button type="button" class="layer younger" data-i="${v}"><span class="id">${esc(N.id[v])}</span><span class="d">${dtxt(D[v])}</span></button>`;
+      col += `<div class="link">${METHODS[above[k][1]]} ↑ younger</div>`;
+    }
+    col += `<div class="layer sel"><span class="id">${esc(N.id[i])}</span><span class="d">${dtxt(D[i])}</span></div>`;
+    for (let k = 0; k < below.length; k++) {
+      const [v, mm] = below[k];
+      col += `<div class="link">${METHODS[mm]} ↓ older</div>`;
+      col += `<button type="button" class="layer older" data-i="${v}"><span class="id">${esc(N.id[v])}</span><span class="d">${dtxt(D[v])}</span></button>`;
+    }
+    const chips = (adj) => { let h = "", c = 0;
+      for (let k = adj.off[i]; k < adj.off[i + 1]; k++) { const v = adj.v[k]; c++;
+        if (c <= 40) h += `<button type="button" class="chip" data-i="${v}">${esc(N.id[v])}<small>${dtxt(D[v])} · ${METHODS[adj.m[k]]}</small></button>`; }
+      if (c > 40) h += `<span class="empty">+${c - 40} more</span>`;
+      return c ? `<div class="chips">${h}</div>` : '<p class="empty">None known.</p>'; };
+    el.innerHTML = `
+      <p class="eyebrow">Selected crater</p>
+      <p class="cid">${esc(N.id[i])}</p>
+      <dl class="facts">
+        <dt>Diameter</dt><dd>${D[i].toFixed(2)} km</dd>
+        <dt>Center</dt><dd>${ll(i)}</dd>
+        <dt>Host unit</dt><dd>${unit}</dd>
+        <dt>Rim state</dt><dd>${deg}</dd>
+      </dl>
+      <div class="counts" style="margin-top:12px">
+        <div class="count old"><div class="n">${fmt(N.nOld[i])}</div><div class="l">older craters beneath it</div></div>
+        <div class="count young"><div class="n">${fmt(N.nYoung[i])}</div><div class="l">younger craters on it</div></div>
+      </div>
+      <div style="margin-top:14px"><p class="eyebrow">Stratigraphic column · longest chain, oldest at bottom</p>
+        <div class="column">${col}</div></div>
+      <div style="margin-top:14px"><p class="eyebrow">Directly younger (cuts or sits inside it)</p>${chips(succ)}</div>
+      <div style="margin-top:10px"><p class="eyebrow">Directly older (it cuts or sits inside them)</p>${chips(pred)}</div>`;
+    el.querySelectorAll("[data-i]").forEach((b) => b.addEventListener("click", () => select(+b.dataset.i, true)));
+  }
+
+  // ---------------- drawing ----------------
+  function resize() {
+    const r = wrap.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); dirty = true;
+  }
+  new ResizeObserver(resize).observe(wrap);
+
+  const W = () => canvas.clientWidth, H = () => canvas.clientHeight;
+  const dLon = (x) => ((x - view.lon + 540) % 360) - 180;
+  const sx = (lo) => W() / 2 + dLon(lo) * view.s;
+  const sy = (la) => H() / 2 - (la - view.lat) * view.s;
+
+  // ---------------- tiled basemap (full builds only) ----------------
+  // Tiles: level z has 8 * 2^z px/degree; 360 px tiles span 45 / 2^z degrees;
+  // rows from 90N southward, columns from 0E eastward: <base>/<layer>/<z>/<r>/<c>.jpg
+  const TILES = window.MCG_TILES || null;
+  let layer = TILES ? TILES.layers.find((l) => l.id === TILES.default) || TILES.layers[0] : null;
+  const tiles = new Map();               // key -> {img, ok, missing}
+  const levelStats = {};                 // "layer/z" -> {hit, miss}
+  function tileKey(l, z, r, c) { return `${l.id}/${z}/${r}/${c}`; }
+  function effMaxZ(l) {
+    let z = l.maxZ;
+    while (z > 0) { const st = levelStats[`${l.id}/${z}`]; if (st && st.hit === 0 && st.miss >= 6) z--; else break; }
+    return z;
+  }
+  function getTile(l, z, r, c, request) {
+    const k = tileKey(l, z, r, c);
+    let t = tiles.get(k);
+    if (!t && request) {
+      t = { img: new Image(), ok: false, missing: false };
+      const st = levelStats[`${l.id}/${z}`] || (levelStats[`${l.id}/${z}`] = { hit: 0, miss: 0 });
+      t.img.onload = () => { t.ok = true; st.hit++; dirty = true; };
+      t.img.onerror = () => { t.missing = true; st.miss++; dirty = true; };
+      t.img.src = `${TILES.base}/${l.id}/${z}/${r}/${c}.jpg`;
+      tiles.set(k, t);
+      if (tiles.size > 900) {             // drop the oldest entries
+        let n = tiles.size - 700;
+        for (const key of tiles.keys()) { if (n-- <= 0) break; tiles.delete(key); }
+      }
+    }
+    return t;
+  }
+  function tileLevelZero(l) {             // true once every level-0 tile has loaded
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 8; c++) {
+      const t = getTile(l, 0, r, c, true); if (!t.ok && !t.missing) return false;
+    }
+    return true;
+  }
+  function drawTiles(w, h) {
+    const dpr = window.devicePixelRatio || 1;
+    const zt = Math.max(0, Math.min(effMaxZ(layer), Math.ceil(Math.log2(view.s * dpr / 8))));
+    const span = 45 / 2 ** zt, nrow = 4 * 2 ** zt, ncol = 8 * 2 ** zt;
+    const lat1 = view.lat + h / 2 / view.s, lat0 = view.lat - h / 2 / view.s;
+    const r0 = Math.max(0, Math.floor((90 - lat1) / span)), r1 = Math.min(nrow - 1, Math.floor((90 - lat0) / span));
+    const i0 = Math.floor((view.lon - w / 2 / view.s) / span), i1 = Math.floor((view.lon + w / 2 / view.s) / span);
+    if ((r1 - r0 + 1) * (i1 - i0 + 1) > 400) return;   // safety: never request a flood of tiles
+    const size = span * view.s;
+    for (let r = r0; r <= r1; r++) {
+      const y = h / 2 - (90 - r * span - view.lat) * view.s;
+      for (let i = i0; i <= i1; i++) {
+        const c = ((i % ncol) + ncol) % ncol;
+        const x = w / 2 + (i * span - view.lon) * view.s;
+        // the exact tile if loaded, otherwise the nearest loaded ancestor
+        let drawn = false;
+        for (let up = 0; up <= zt && !drawn; up++) {
+          const z = zt - up, pr = r >> up, pc = c >> up;
+          const t = getTile(layer, z, pr, pc, up === 0 || z === 0);
+          if (t && t.ok) {
+            const sub = 360 >> up, sxp = (c - (pc << up)) * sub, syp = (r - (pr << up)) * sub;
+            ctx.drawImage(t.img, sxp, syp, sub, sub, Math.floor(x), Math.floor(y), Math.ceil(size) + 1, Math.ceil(size) + 1);
+            drawn = true;
+          }
+        }
+      }
+    }
+  }
+
+  function draw() {
+    const w = W(), h = H();
+    ctx.fillStyle = "#2a2d30"; ctx.fillRect(0, 0, w, h);
+    ctx.imageSmoothingEnabled = true;
+    if (relief && !(layer && tileLevelZero(layer))) {
+      const iw = 360 * view.s, ih = 176 * view.s;
+      const y0 = h / 2 - (88 - view.lat) * view.s;
+      let x0 = w / 2 - ((view.lon) * view.s);
+      x0 = ((x0 % iw) + iw) % iw - iw;
+      for (let x = x0; x < w; x += iw) ctx.drawImage(relief, x, y0, iw, ih);
+    }
+    if (layer) drawTiles(w, h);
+    ctx.fillStyle = colors["map-tint"]; ctx.fillRect(0, 0, w, h);
+    if (!N) return;
+    const dep = [colors.d0, colors.d1, colors.d2, colors.d3];
+    const latMin = view.lat - h / 2 / view.s - 1, latMax = view.lat + h / 2 / view.s + 1;
+    const halfLon = w / 2 / view.s + 1;
+    const hasSel = sel >= 0;
+    // cataloged craters with no relation: thin gray outlines, once zoomed in
+    if (U && filt.unl && view.s >= 6) {
+      ctx.strokeStyle = hasSel ? colors.dim : colors.unlinked; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 0.9;
+      for (let j = 0; j < un; j++) {
+        if (uD[j] < filt.minD) continue;
+        const la = ulat[j]; if (la < latMin || la > latMax) continue;
+        const dl = dLon(ulon[j]); const cl = Math.max(Math.cos(la * Math.PI / 180), 0.05);
+        const rr = uD[j] / 2 / KPD;
+        if (Math.abs(dl) - rr / cl > halfLon) continue;
+        const x = w / 2 + dl * view.s, y = h / 2 - (la - view.lat) * view.s, ry = rr * view.s;
+        if (ry < 1.6) { ctx.fillRect(x - 1, y - 1, 2, 2); continue; }
+        ctx.beginPath(); ctx.ellipse(x, y, ry / cl, ry, 0, 0, Math.PI * 2); ctx.stroke();
+      }
+      if (usel >= 0) {
+        const j = usel, cl = Math.max(Math.cos(ulat[j] * Math.PI / 180), 0.05), ry = Math.max(uD[j] / 2 / KPD * view.s, 4);
+        ctx.strokeStyle = colors.ink; ctx.lineWidth = 2.6;
+        ctx.beginPath(); ctx.ellipse(sx(ulon[j]), sy(ulat[j]), ry / cl, ry, 0, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+    // craters
+    for (let pass = 0; pass < 2; pass++) {
+      for (let i = 0; i < n; i++) {
+        if (D[i] < filt.minD && i !== sel) continue;
+        const la = lat[i]; if (la < latMin || la > latMax) continue;
+        const dl = dLon(lon[i]);
+        const cl = Math.max(Math.cos(la * Math.PI / 180), 0.05);
+        const rr = D[i] / 2 / KPD;
+        if (Math.abs(dl) - rr / cl > halfLon) continue;
+        const related = hasSel && (i === sel || anc[i] || desc[i]);
+        if (pass === 0 && related) continue;          // related craters drawn on top
+        if (pass === 1 && !related) continue;
+        let c;
+        if (!hasSel) c = dep[Math.min(N.depth[i], 3)];
+        else if (i === sel) c = colors.ink;
+        else if (anc[i]) c = colors.older;
+        else if (desc[i]) c = colors.younger;
+        else c = colors.dim;
+        const x = w / 2 + dl * view.s, y = h / 2 - (la - view.lat) * view.s;
+        const ry = rr * view.s, rx = ry / cl;
+        if (ry < 1.6) { ctx.fillStyle = c; const q = related ? 3 : 2; ctx.fillRect(x - q / 2, y - q / 2, q, q); }
+        else {
+          ctx.strokeStyle = c; ctx.lineWidth = i === sel ? 2.6 : related ? 1.8 : 1.1;
+          ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+        }
+      }
+    }
+    // edges: all visible edges when zoomed in; plus the selected crater's lineage
+    const showAll = view.s >= 45;
+    ctx.lineWidth = 1.1;
+    const m = E.o.length;
+    for (let k = 0; k < m; k++) {
+      const o = E.o[k], y = E.y[k], mm = E.m[k];
+      if (!edgeVisible(mm)) continue;
+      const lineage = hasSel && ((o === sel || anc[o]) && (y === sel || anc[y]) || (o === sel || desc[o]) && (y === sel || desc[y]));
+      if (!lineage && !(showAll && !hasSel)) continue;
+      if (D[o] < filt.minD && o !== sel || D[y] < filt.minD && y !== sel) continue;
+      const la1 = lat[o], la2 = lat[y];
+      if ((la1 < latMin && la2 < latMin) || (la1 > latMax && la2 > latMax)) continue;
+      const x1 = sx(lon[o]), y1 = sy(la1), x2 = sx(lon[y]), y2 = sy(la2);
+      if (Math.max(x1, x2) < -50 || Math.min(x1, x2) > w + 50) continue;
+      if (Math.abs(x2 - x1) > w * 2) continue;
+      const col = lineage ? (anc[y] || y === sel ? colors.older : colors.younger) : colors.edge;
+      arrow(x1, y1, x2, y2, col, mm === 0);
+    }
+  }
+
+  function arrow(x1, y1, x2, y2, col, solid) {
+    const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy);
+    if (L < 4) return;
+    ctx.strokeStyle = col; ctx.fillStyle = col;
+    ctx.setLineDash(solid ? [] : [4, 3]);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.setLineDash([]);
+    const ux = dx / L, uy = dy / L, a = 6;
+    ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2 - a * ux + a * 0.45 * uy, y2 - a * uy - a * 0.45 * ux);
+    ctx.lineTo(x2 - a * ux - a * 0.45 * uy, y2 - a * uy + a * 0.45 * ux); ctx.closePath(); ctx.fill();
+  }
+
+  function loop() { if (dirty) { dirty = false; draw(); } requestAnimationFrame(loop); }
+
+  // ---------------- interaction ----------------
+  const pointers = new Map(); let dragMoved = false, pinch0 = null;
+  canvas.addEventListener("pointerdown", (e) => {
+    canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+    dragMoved = false; canvas.classList.add("dragging");
+    if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch0 = { d: Math.hypot(a.x - b.x, a.y - b.y), s: view.s }; }
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    const lo = view.lon + (e.offsetX - W() / 2) / view.s, la = view.lat - (e.offsetY - H() / 2) / view.s;
+    $("coord").textContent = `${la.toFixed(2)}°, ${(((lo % 360) + 360) % 360).toFixed(2)}°E`;
+    const p = pointers.get(e.pointerId); if (!p) return;
+    if (pointers.size === 2 && pinch0) {
+      p.x = e.offsetX; p.y = e.offsetY; const [a, b] = [...pointers.values()];
+      view.s = clampS(pinch0.s * Math.hypot(a.x - b.x, a.y - b.y) / pinch0.d); dragMoved = true; dirty = true; return;
+    }
+    const dx = e.offsetX - p.x, dy = e.offsetY - p.y;
+    if (Math.abs(dx) + Math.abs(dy) > 3) dragMoved = true;
+    view.lon -= dx / view.s; view.lat = Math.max(-88, Math.min(88, view.lat + dy / view.s));
+    p.x = e.offsetX; p.y = e.offsetY; dirty = true;
+  });
+  const end = (e) => {
+    const was = pointers.size; pointers.delete(e.pointerId); canvas.classList.remove("dragging");
+    if (pointers.size < 2) pinch0 = null;
+    if (e.type === "pointerup" && was === 1 && !dragMoved) pick(e.offsetX, e.offsetY);
+  };
+  canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end);
+  const clampS = (s) => Math.max(1.5, Math.min(6000, s));
+  function zoomAt(f, px, py) {
+    const lo = view.lon + (px - W() / 2) / view.s, la = view.lat - (py - H() / 2) / view.s;
+    view.s = clampS(view.s * f);
+    view.lon = lo - (px - W() / 2) / view.s; view.lat = Math.max(-88, Math.min(88, la + (py - H() / 2) / view.s));
+    dirty = true;
+  }
+  canvas.addEventListener("wheel", (e) => { e.preventDefault(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.offsetX, e.offsetY); }, { passive: false });
+  $("zin").onclick = () => zoomAt(1.6, W() / 2, H() / 2);
+  $("zout").onclick = () => zoomAt(1 / 1.6, W() / 2, H() / 2);
+
+  // best candidate in one crater set: a center within 10 px, else the smallest crater containing the point
+  function pickIn(g, LAT, LON, DD, px, py, lo, la) {
+    const key = Math.floor(la) * 1000 + ((Math.floor(lo) % 360) + 360) % 360;
+    let best = -1, bestD = Infinity, near = -1, nearPx = 10;
+    for (const i of (g.get(key) || [])) {
+      if (DD[i] < filt.minD) continue;
+      const cl = Math.max(Math.cos(LAT[i] * Math.PI / 180), 0.05);
+      const dxk = dLon(lo) - dLon(LON[i]), dkm = Math.hypot(dxk * cl * KPD, (la - LAT[i]) * KPD);
+      if (dkm <= DD[i] / 2 && DD[i] < bestD) { best = i; bestD = DD[i]; }
+      const dpx = Math.hypot(sx(LON[i]) - px, sy(LAT[i]) - py);
+      if (dpx < nearPx) { nearPx = dpx; near = i; }
+    }
+    if (near >= 0 && (best < 0 || DD[near] < bestD)) return { i: near, d: DD[near], near: true };
+    return best >= 0 ? { i: best, d: bestD, near: false } : null;
+  }
+  function pick(px, py) {
+    if (!N) return;
+    const lo = view.lon + (px - W() / 2) / view.s, la = view.lat - (py - H() / 2) / view.s;
+    const a = pickIn(grid, lat, lon, D, px, py, lo, la);
+    const b = U && filt.unl && view.s >= 6 ? pickIn(ugrid, ulat, ulon, uD, px, py, lo, la) : null;
+    // prefer a clicked center, then the smaller crater
+    const useB = b && (!a || (b.near && !a.near) || (b.near === a.near && b.d < a.d));
+    if (useB) selectUnlinked(b.i, false); else if (a) select(a.i, false); else select(-1);
+  }
+
+  $("searchForm").addEventListener("submit", (e) => {
+    e.preventDefault(); const q = $("q").value.trim(); $("msg").textContent = "";
+    if (!q || !N) return;
+    if (idIndex.has(q)) { select(idIndex.get(q), true); return; }
+    if (uidIndex.has(q)) { selectUnlinked(uidIndex.get(q), true); return; }
+    const m = q.match(/^\s*(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (m) {
+      const la = +m[1], lo = ((+m[2] % 360) + 360) % 360; let best = -1, bd = Infinity;
+      for (let i = 0; i < n; i++) { const cl = Math.cos(la * Math.PI / 180);
+        const d = Math.hypot(((lon[i] - lo + 540) % 360 - 180) * cl, lat[i] - la); if (d < bd) { bd = d; best = i; } }
+      if (best >= 0) { select(best, true); $("msg").textContent = bd > 1 ? `Nearest linked crater is ${(bd * KPD).toFixed(0)} km away.` : ""; }
+      return;
+    }
+    $("msg").textContent = "No crater with that ID. IDs look like 07-1-014021 (Robbins catalog, craters of at least 1 km).";
+  });
+  $("clearBtn").onclick = () => select(-1);
+  if (TILES) {
+    const sel = $("basemap");
+    for (const l of TILES.layers) { const o = document.createElement("option"); o.value = l.id; o.textContent = l.name; sel.appendChild(o); }
+    sel.value = layer.id; $("baseWrap").hidden = false; $("baseCredit").textContent = layer.credit || "";
+    sel.onchange = () => { layer = TILES.layers.find((l) => l.id === sel.value); $("baseCredit").textContent = layer.credit || ""; dirty = true; };
+  }
+  $("showCont").onchange = (e) => { filt.cont = e.target.checked; dirty = true; };
+  $("showOver").onchange = (e) => { filt.over = e.target.checked; dirty = true; };
+  $("showUnl").onchange = (e) => { filt.unl = e.target.checked; if (!filt.unl && usel >= 0) select(-1); dirty = true; };
+  $("minD").onchange = (e) => { filt.minD = +e.target.value; dirty = true; };
+
+  load();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,147 @@
+{
+  "deg_ceiling_from_containment": {
+    "q": 0.8978,
+    "n": 5452
+  },
+  "deg_check_by_method": [
+    {
+      "method": "arc",
+      "n_edges": 14684,
+      "n_with_deg": 3019,
+      "deg_agreement": 0.8996,
+      "implied_accuracy": 1.0
+    },
+    {
+      "method": "topo",
+      "n_edges": 496,
+      "n_with_deg": 222,
+      "deg_agreement": 0.7342,
+      "implied_accuracy": 0.794
+    },
+    {
+      "method": "topo+arc",
+      "n_edges": 1002,
+      "n_with_deg": 646,
+      "deg_agreement": 0.9536,
+      "implied_accuracy": 1.0
+    }
+  ],
+  "deg_check_by_size": [
+    {
+      "method": "arc",
+      "D_small": "[10.0, 20.0)",
+      "n": 555,
+      "deg_agreement": 0.8775,
+      "implied_accuracy": 0.974
+    },
+    {
+      "method": "arc",
+      "D_small": "[20.0, 10000.0)",
+      "n": 438,
+      "deg_agreement": 0.8493,
+      "implied_accuracy": 0.939
+    },
+    {
+      "method": "arc",
+      "D_small": "[3.0, 5.0)",
+      "n": 1019,
+      "deg_agreement": 0.9146,
+      "implied_accuracy": 1.0
+    },
+    {
+      "method": "arc",
+      "D_small": "[5.0, 10.0)",
+      "n": 1000,
+      "deg_agreement": 0.918,
+      "implied_accuracy": 1.0
+    },
+    {
+      "method": "topo",
+      "D_small": "[10.0, 20.0)",
+      "n": 61,
+      "deg_agreement": 0.7541,
+      "implied_accuracy": 0.819
+    },
+    {
+      "method": "topo",
+      "D_small": "[20.0, 10000.0)",
+      "n": 101,
+      "deg_agreement": 0.7426,
+      "implied_accuracy": 0.805
+    },
+    {
+      "method": "topo",
+      "D_small": "[3.0, 5.0)",
+      "n": 29,
+      "deg_agreement": 0.5517,
+      "implied_accuracy": 0.565
+    },
+    {
+      "method": "topo",
+      "D_small": "[5.0, 10.0)",
+      "n": 31,
+      "deg_agreement": 0.8387,
+      "implied_accuracy": 0.926
+    },
+    {
+      "method": "topo+arc",
+      "D_small": "[10.0, 20.0)",
+      "n": 216,
+      "deg_agreement": 0.9537,
+      "implied_accuracy": 1.0
+    },
+    {
+      "method": "topo+arc",
+      "D_small": "[20.0, 10000.0)",
+      "n": 255,
+      "deg_agreement": 0.9412,
+      "implied_accuracy": 1.0
+    },
+    {
+      "method": "topo+arc",
+      "D_small": "[3.0, 5.0)",
+      "n": 48,
+      "deg_agreement": 0.9375,
+      "implied_accuracy": 1.0
+    },
+    {
+      "method": "topo+arc",
+      "D_small": "[5.0, 10.0)",
+      "n": 127,
+      "deg_agreement": 0.9843,
+      "implied_accuracy": 1.0
+    }
+  ],
+  "topo_vs_arc": {
+    "n": 1021,
+    "agreement": 0.9814
+  },
+  "layered_ejecta_check": {
+    "n": 2150,
+    "younger_is_the_layered_one": 0.6609
+  },
+  "ctx_visual": {
+    "pairs_shown": 82,
+    "judgeable": 46,
+    "oriented_and_judgeable": 44,
+    "agreement": 0.9545,
+    "by_method": {
+      "arc": {
+        "n": 31,
+        "agree": 29
+      },
+      "containment": {
+        "n": 5,
+        "agree": 5
+      },
+      "topo": {
+        "n": 4,
+        "agree": 4
+      },
+      "topo+arc": {
+        "n": 4,
+        "agree": 4
+      }
+    }
+  }
+}
