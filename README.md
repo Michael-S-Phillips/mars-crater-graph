@@ -92,6 +92,39 @@ python tests/test_core.py
 
 The full run takes about two minutes on a laptop-class machine. `build_graph.py --min-conf low` includes the topography-only edges. `scripts/extract_chips.py` and `scripts/extract_ctx_chips.py` cut THEMIS and CTX image chips from local global mosaics for visual review, and the two `render_*validation.py` scripts draw the blinded review sheets.
 
+## Crater-count ages, chain depth, and degradation rates
+
+These scripts produce the analyses in Sections 6–8 of the paper: crater-count ages tested against superposition order, the depth of superposition chains, and crater degradation rates. They run after the main pipeline, because they read `outputs/nodes.csv.gz` and `outputs/edges.csv`. Run them in the order below. The shared code is in three modules: `mcgraph/ages.py` measures crater-count ages on crater interiors, `mcgraph/chronology.py` holds the Bayesian sequence model, and `mcgraph/basemap.py` blends THEMIS daytime infrared with MOLA shaded relief for figure basemaps.
+
+```bash
+python scripts/interior_counts.py --work work --out outputs
+python scripts/age_pair_test.py --out outputs
+python scripts/age_chronology.py --out outputs [--dmin 3] [--eps 0] [--tag main]
+python scripts/test_sequence_model.py
+python scripts/make_age_figures.py --out outputs --fig figures
+python scripts/sim_cratering.py --out outputs/sim/seed1 --side 4000 --tau-max 0.04 --seed 1
+python scripts/sim_compare.py --out outputs --sims outputs/sim/seed1 outputs/sim/seed2 ...
+python scripts/sim_erosion_fit.py --out outputs --sims outputs/sim/seed1 ... [--tb 3.7] [--qmin 0.05]
+python scripts/make_sim_figure.py --out outputs --fig figures [--erasure arc]
+python scripts/make_erosion_figure.py --out outputs --fig figures
+python scripts/make_connections_figure.py --out outputs --fig figures
+python scripts/make_linked_fraction_figure.py --nodes outputs/nodes.csv.gz --fig figures
+```
+
+`age_chronology.py` writes `outputs/crater_ages_<tag>.parquet`. The `d2` and `eps01` files in `outputs/` are sensitivity runs made with other values of `--dmin` and `--eps`. `test_sequence_model.py` checks the sequence model on synthetic crater sequences and writes no files. `sim_erosion_fit.py` writes `outputs/sim_erosion_fit_<tag>.json`, and the files in `outputs/` come from runs with different options. `make_erosion_figure.py` reads the `final_diffusion`, `linear_arc0.3`, and `diffusion` runs by default.
+
+Run `sim_cratering.py` once per random seed, with a separate output directory for each seed. Each run writes a simulation state of about 200 MB to its directory under `outputs/sim/`. These states are not in the repository. `sim_compare.py` and `sim_erosion_fit.py` need them.
+
+`sim_erosion_fit.py` also reads `outputs/crater_depths_matched.parquet`. This table holds MOLA rim-to-floor depths from the original Robbins and Hynek (2012) release, matched to the 2020 catalog. No script in this repository builds it, so it is committed as an input.
+
+The basemaps in `figures/fig0_method_example.png` and `figures/fig2_regional_hasse.png` need the THEMIS daytime infrared global mosaic, which is not in the repository. `extract_themis_cutout.py` cuts a box out of the mosaic and writes it as an `.npz` file. Run it where the mosaic is stored. Then pass the cutout to `make_figures.py` with `--themis-regional`, or to `fig_method.py` as its last argument:
+
+```bash
+python scripts/extract_themis_cutout.py SRC.tif OUT.npz LAT0 LAT1 LON0 LON1 --ppd 512
+python scripts/make_figures.py --work work --out outputs --fig figures --themis-regional OUT.npz
+python scripts/fig_method.py WORK OUT.png [BIG_ID SMALL_ID] [THEMIS_CUTOUT.npz]
+```
+
 ## Publishing
 
 **Explorer.** The website is served by GitHub Pages from the `gh-pages` branch, which holds `index.html`, `.nojekyll`, `explorer/index.html`, `explorer/data/` (`mcg_data.js` and `relief.jpg`), and tile levels 0–4 of both basemaps (~670 MB); the root `index.html` forwards visitors to https://michael-s-phillips.github.io/mars-crater-graph/explorer/. The main branch carries no tiles. THEMIS level 5 (~750 MB, 32,224 tiles) is left off the website to stay under GitHub's 1 GB Pages limit, so the hosted explorer stops at ~460 m/pixel while a local copy with level 5 reaches ~230 m/pixel; the page detects the missing level and uses the one below. Rerun `build_public_explorer.py` with `--doi` and `--repo` once those exist, so the page footer links to them, and with `--tiles-url <site>/explorer/tiles` so the single-file build in `dist/` also draws the tiled basemap. The single-file build can be attached to the Zenodo record and to a GitHub release.

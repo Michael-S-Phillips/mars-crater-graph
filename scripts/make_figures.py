@@ -17,6 +17,8 @@ from mcgraph.dem import MolaDEM, PPD
 ap = argparse.ArgumentParser()
 ap.add_argument("--work", required=True); ap.add_argument("--out", required=True)
 ap.add_argument("--fig", required=True)
+ap.add_argument("--themis-regional", default=None,
+                help="THEMIS cutout (.npz from extract_themis_cutout.py) covering --region")
 ap.add_argument("--region", default="-37.5,-33.0,358.5,3.5",
                 help="lat_min,lat_max,lon_min,lon_max for the zoom panel (lon may wrap)")
 a = ap.parse_args()
@@ -95,7 +97,18 @@ ids = set(sel.index)
 ee = edges[edges.older.isin(ids) & edges.younger.isin(ids)]
 W = 10; H = W * (y1 - y0) / (x1 - x0)
 fig, ax = plt.subplots(figsize=(W, H + 0.6), dpi=150)
-ax.imshow(hs2, cmap="gray", extent=(x0, x1, y0, y1), vmin=-0.1, vmax=1.1, alpha=0.8)
+if a.themis_regional:
+    from scipy.ndimage import map_coordinates
+    from mcgraph.basemap import load_cutout, sample_cutout, blend
+    tp = 512  # THEMIS grid, pixels per degree
+    ny2, nx2 = int((la1 - la0) * tp), int((lo1 - lo0) * tp)
+    LA2, LO2 = np.meshgrid(np.linspace(la1, la0, ny2), np.linspace(lo0, lo1, nx2), indexing="ij")
+    th = sample_cutout(load_cutout(a.themis_regional), LA2, LO2)
+    rr = (la1 - LA2) / (la1 - la0) * (ny - 1); cc = (LO2 - lo0) / (lo1 - lo0) * (nx_ - 1)
+    hsu = map_coordinates(hs2, [rr.ravel(), cc.ravel()], order=1).reshape(LA2.shape)
+    ax.imshow(blend(th, hsu), cmap="gray", extent=(x0, x1, y0, y1), vmin=0, vmax=1, alpha=0.8)
+else:
+    ax.imshow(hs2, cmap="gray", extent=(x0, x1, y0, y1), vmin=-0.1, vmax=1.1, alpha=0.8)
 X, Y = to_xy(sel.lat, sel.lon)
 for (n, r), xc, yc in zip(sel.iterrows(), X, Y):
     d = int(min(r.depth, 3))
